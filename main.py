@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from docker import Client
+from docker.errors import *
 
 cli = Client(base_url='unix://var/run/docker.sock')
 
@@ -18,11 +19,14 @@ for container in containers:
 
 print "Blacklisted the following images from deletion "+str(image_blacklist)
 
-images = cli.images(filters={'dangling': True})
+images = cli.images()
 for image in images:
     imagenames = image.get('RepoTags')
     has_running_containers = (len(set(imagenames).intersection(image_blacklist)) > 0)
     if not has_running_containers:
         image_id = image.get('Id')
         print "Destroying image "+image_id
-        cli.remove_image(image=image_id)
+        try:
+            cli.remove_image(image=image_id)
+        except APIError as err:
+            print "Error destroying {}. Error: {}".format(image_id, err)
